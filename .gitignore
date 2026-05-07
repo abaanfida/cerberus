@@ -10,3 +10,8 @@ build/
 .pytest_cache/
 .mypy_cache/
 *.pdf
+phase3.js
+tests/
+remove_docs.py
+remove_sections.py
+script.py

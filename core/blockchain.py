@@ -1,3 +1,4 @@
+from __future__ import annotations
 from core.block import Block
 from core.crypto import compute_block_hash
 from core.transaction import Transaction
@@ -33,3 +34,23 @@ class Blockchain:
 
     def __iter__(self):
         return iter(self.chain)
+
+
+    def get_headers(self) -> list[dict]:
+        return [block.to_header_dict() for block in self.chain]
+
+    def sync_from_headers(self, headers: list[dict]) -> None:
+        self.chain = []
+        for h in headers:
+            b = Block(
+                block_id     = h["index"],
+                epoch        = h["epoch"],
+                prev_hash    = h["prev_hash"],
+                transactions = [],
+                summary_hash = h["summary_hash"],
+                block_hash   = h["block_hash"],
+            )
+            self.chain.append(b)
+
+    def to_api_dict(self) -> list[dict]:
+        return [b.to_dict() for b in self.chain]
