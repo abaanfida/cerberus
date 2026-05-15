@@ -7,6 +7,7 @@ from core.blockchain import Blockchain
 from core.block import Block
 from core.transaction import Transaction
 from core.proof_store import ProofStore
+from p2p.proof_registry import ProofRegistry
 
 
 
@@ -41,6 +42,7 @@ class P2PNode:
         self.port        = port
         self.blockchain  = blockchain
         self.proof_store = proof_store or ProofStore()
+        self.proof_registry = ProofRegistry()
         self.peers: list[tuple[str, int]] = []
         self.running     = False
         self._server_thread: threading.Thread | None = None
@@ -71,6 +73,10 @@ class P2PNode:
     def broadcast_tx(self, tx: Transaction) -> None:
         payload = {"type": "tx", "data": tx.to_dict()}
         self._broadcast(payload, label=f"tx:{tx.tx_id[:8]}")
+
+    def broadcast_proof_update(self, tx_id: str, has_proof: bool) -> None:
+        payload = {"type": "proof_update", "data": {"tx_id": tx_id, "node_id": str(self.port), "has_proof": has_proof}}
+        self._broadcast(payload, label=f"proof_update:{tx_id[:8]}")
 
     def _broadcast(self, payload: dict, label: str = "") -> None:
         for host, port in self.peers:
@@ -131,6 +137,10 @@ class P2PNode:
             proof = entry["proof"] if entry else None
             return {"proof": proof}
 
+        elif mtype == "proof_update":
+            self._on_proof_update(msg["data"])
+            return None
+
         else:
             print(f"[NODE {self.port}] Unknown message type: {mtype}")
             return None
@@ -150,6 +160,12 @@ class P2PNode:
     def _on_tx(self, data: dict) -> None:
         tx = Transaction.from_dict(data)
         print(f"[NODE {self.port}] Received tx {tx.tx_id[:12]}…")
+
+    def _on_proof_update(self, data: dict) -> None:
+        tx_id = data["tx_id"]
+        node_id = data["node_id"]
+        has_proof = data["has_proof"]
+        self.proof_registry.update_proof(tx_id, node_id, has_proof)
 
 
     def sync_from(self, peer_host: str, peer_port: int) -> bool:
